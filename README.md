@@ -14,3 +14,5 @@ added a converter from SkillIndex to AffectIndex (since the source sends directl
 added a dictionary to add new affect
 
 the code can be improved even more, but I wanted to give another small contribution
+
+![](https://github.com/deadoflove/renewal_affect_shower/blob/main/affect_shower.gif)
