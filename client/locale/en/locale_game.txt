@@ -1,0 +1,1 @@
+POLYMORPH_AFFECT_TOOLTIP	Polymorph Marble	SNA
