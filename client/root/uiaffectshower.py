@@ -91,63 +91,199 @@ class AutoPotionImage(ui.ExpandedImageBox):
 			self.SetScale(0.7, 0.7)
 
 
-# check this class carefully
+# update, set your old class to else:
 
 class AffectImage(ui.ExpandedImageBox):
 
-# modify it, it is added all the defines in every change
+# replace
 
-class AffectImage(ui.ExpandedImageBox):
+if app.ENABLE_RENEWAL_AFFECT_SHOWER:
+	class AffectImage(ui.ExpandedImageBox):
+		def __init__(self):
+			ui.ExpandedImageBox.__init__(self)
 
-	def __init__(self):
-		ui.ExpandedImageBox.__init__(self)
-
-		if app.ENABLE_RENEWAL_AFFECT_SHOWER:
 			self.toolTip = uiToolTip.ToolTip()
 			self.toolTip.HideToolTip()
-		else:
-			self.toolTipText = None
-		self.isSkillAffect = True
-		self.description = None
-		self.endTime = 0
-		self.affect = None
-		self.isClocked = True
+			self.isToolTipVisible = False  # The tooltip is not initially visible
+			self.skillIndex = None  # New attribute to store the skill index
+			self.isSkillAffect = True
+			self.description = None
+			self.endTime = 0
+			self.affect = None
 
-	def SetAffect(self, affect):
-		self.affect = affect
+		def SetAffect(self, affect):
+			self.affect = affect
 
-	def GetAffect(self):
-		return self.affect
+		def GetAffect(self):
+			return self.affect
 
-	if app.ENABLE_RENEWAL_AFFECT_SHOWER:
-		def FormatTime(self, time):
-			text = ""
+		def SetToolTipText(self, text):
+			# Check if the text is already configured
+			if hasattr(self, "currentToolTipText") and self.currentToolTipText == text:
+				return  # Do nothing if text is already configured
 
-			d = time // (24 * 3600)
-			time = time % (24 * 3600)
-			h = time // 3600
-			time %= 3600
-			m = time // 60
-			time %= 60
-			s = time
-
-			if d:
-				text += "%dd " % d
-			if text or h:
-				text += "%dh " % h
-			if text or m:
-				text += "%dm " % m
-			if text or s:
-				text += "%ds " % s
-
-			return text[:-1]
-
-		def SetToolTipText(self, text, x = 0, y = -19):
 			self.toolTip.ClearToolTip()
-			self.toolTip.AppendSpace(-5)
-			self.toolTip.AppendDescription(text, 26)
-	else:
+			self.toolTip.AppendTextLine(text, 0xffffffff)
+			self.toolTip.AlignHorizonalCenter()
+			self.toolTip.ResizeToolTip()
+			# Store current text
+			self.currentToolTipText = text
+
+		def SetDescription(self, description):
+			self.description = description
+			self.UpdateDescription()
+
+		def SetDuration(self, duration):
+			self.endTime = 0
+			if duration > 0:
+				self.endTime = app.GetGlobalTimeStamp() + duration
+				self.UpdateDescription()
+
+		def UpdateAutoPotionDescription(self):
+			if not self.toolTip:
+				return
+
+			potionType = 0
+			if self.affect == chr.NEW_AFFECT_AUTO_HP_RECOVERY:
+				potionType = player.AUTO_POTION_TYPE_HP
+			else:
+				potionType = player.AUTO_POTION_TYPE_SP
+
+			isActivated, currentAmount, totalAmount, slotIndex = player.GetAutoPotionInfo(potionType)
+
+			amountPercent = 0.0
+
+			try:
+				amountPercent = (float(currentAmount) / totalAmount) * 100.0
+			except:
+				amountPercent = 100.0
+
+			# Clean the tooltip before upgrading
+			self.toolTip.ClearToolTip()
+
+			# Add the description of the automatic potion
+			self.toolTip.AppendTextLine(self.description % amountPercent, 0xffC5C7C4)
+
+			# Resize the tooltip
+			self.toolTip.ResizeToolTip()
+
+		def FormatTime(self, time):
+			if time < 0:
+				return "0s"  # Be sure to manage negative times
+
+			(d, remainder) = divmod(time, 86400)
+			(h, remainder) = divmod(remainder, 3600)
+			(m, s) = divmod(remainder, 60)
+
+			# Create a list of non-empty values
+			time_parts = [
+				"{}d".format(d) if d > 0 else "",
+				"{}h".format(h) if h > 0 else "",
+				"{}m".format(m) if m > 0 else "",
+				"{}s".format(s) if s > 0 else "",
+			]
+
+			# Filter out empty values and join them with a space
+			formatted_time = " ".join(filter(None, time_parts))
+			return formatted_time
+
+		def UpdateDescription(self):
+			# Verify that the tooltip is initialized
+			if not self.toolTip:
+				return
+
+			# Verify that the description is configured
+			if not self.description:
+				return
+
+			# Clean the tooltip before upgrading
+			self.toolTip.ClearToolTip()
+
+			# Add the main description
+			self.toolTip.AppendTextLine(self.description, 0xffC5C7C4)
+
+			# Add remaining time if necessary
+			if self.endTime > 0:
+				remaining_time = self.endTime - app.GetGlobalTimeStamp()
+				leftTime = self.FormatTime(remaining_time)
+				timeText = "(%s : %s)" % (localeInfo.LEFT_TIME, leftTime)
+				self.toolTip.AppendTextLine(timeText, 0xffC5C7C4)
+
+			# Resize the tooltip
+			self.toolTip.ResizeToolTip()
+
+		def SetSkillIndex(self, skillIndex):
+			"""Sets the skill index for this instance."""
+			self.skillIndex = skillIndex
+
+		def UpdateSkillDescription(self):
+			"""Updates the skill description using the stored index."""
+			if self.skillIndex is None:
+				return  # If there is no skill index, do nothing.
+
+			slotIndex = player.GetSkillSlotIndex(self.skillIndex)
+			skillCurrentPercentage = player.GetSkillCurrentEfficientPercentage(slotIndex)
+
+			# Clean the tooltip before upgrading
+			self.toolTip.ClearToolTip()
+
+			# Add the name of the skill
+			skillName = skill.GetSkillName(self.skillIndex)
+			self.toolTip.AppendTextLine(skillName, 0xffffffff)
+
+			# Add skill descriptions
+			for i in xrange(skill.GetSkillAffectDescriptionCount(self.skillIndex)):
+				description = skill.GetSkillAffectDescription(self.skillIndex, i, skillCurrentPercentage)
+				self.toolTip.AppendTextLine(description, 0xff95A693)
+
+			# Add remaining time if necessary
+			if self.endTime > 0:
+				remaining_time = self.endTime - app.GetGlobalTimeStamp()
+				leftTime = self.FormatTime(remaining_time)
+				timeText = "(%s : %s)" % (localeInfo.LEFT_TIME, leftTime)
+				self.toolTip.AppendTextLine(timeText, 0xffC5C7C4)
+
+			# Resize the tooltip
+			self.toolTip.ResizeToolTip()
+
+		def SetSkillAffectFlag(self, flag):
+			self.isSkillAffect = flag
+
+		def IsSkillAffect(self):
+			return self.isSkillAffect
+
+		def OnMouseOverIn(self):
+			self.SetScale(0.9,0.9)
+			if self.toolTip:
+				self.toolTip.ShowToolTip()
+				self.isToolTipVisible = True  # Mark the tooltip as visible
+
+		def OnMouseOverOut(self):
+			self.SetScale(0.7,0.7)
+			if self.toolTip:
+				self.toolTip.HideToolTip()
+				self.isToolTipVisible = False  # Mark the tooltip as not visible
+else:
+	class AffectImage(ui.ExpandedImageBox):
+
+		def __init__(self):
+			ui.ExpandedImageBox.__init__(self)
+
+			self.toolTipText = None
+			self.isSkillAffect = True
+			self.description = None
+			self.endTime = 0
+			self.affect = None
+			self.isClocked = True
+
+		def SetAffect(self, affect):
+			self.affect = affect
+
+		def GetAffect(self):
+			return self.affect
+
 		def SetToolTipText(self, text, x = 0, y = -19):
+
 			if not self.toolTipText:
 				textLine = ui.TextLine()
 				textLine.SetParent(self)
@@ -163,120 +299,72 @@ class AffectImage(ui.ExpandedImageBox):
 			else:
 				self.toolTipText.SetPosition(max(0, x + self.GetWidth()/2 - w/2), y)
 
-	def SetDescription(self, description):
-		self.description = description
-		if app.ENABLE_RENEWAL_AFFECT_SHOWER:
-			self.__UpdateDescription2()
+		def SetDescription(self, description):
+			self.description = description
 
-	def SetDuration(self, duration):
-		self.endTime = 0
-		if duration > 0:
-			self.endTime = app.GetGlobalTimeStamp() + duration
-			if app.ENABLE_RENEWAL_AFFECT_SHOWER:
-				leftTime = self.FormatTime(self.endTime - app.GetGlobalTimeStamp())
-				self.toolTip.AppendTextLine("(%s : %s)" % (localeInfo.LEFT_TIME, leftTime), 0xffC5C7C4)
-				self.toolTip.ResizeToolTip()
+		def SetDuration(self, duration):
+			self.endTime = 0
+			if duration > 0:
+				self.endTime = app.GetGlobalTimeStamp() + duration
 
-	if app.ENABLE_RENEWAL_AFFECT_SHOWER:
-		def UpdateSkillDescription(self, skillIndex):
-			slotIndex = player.GetSkillSlotIndex(skillIndex)
-			skillCurrentPercentage = player.GetSkillCurrentEfficientPercentage(slotIndex)
-			if self.toolTip:
-				self.toolTip.ClearToolTip()
+		def UpdateAutoPotionDescription(self):
 
-			skillName = skill.GetSkillName(skillIndex)
-			self.toolTip.AppendTextLine(skillName, 0xffffffff)
+			potionType = 0
+			if self.affect == chr.NEW_AFFECT_AUTO_HP_RECOVERY:
+				potionType = player.AUTO_POTION_TYPE_HP
+			else:
+				potionType = player.AUTO_POTION_TYPE_SP
 
-			for i in xrange(skill.GetSkillAffectDescriptionCount(skillIndex)):
-				description = skill.GetSkillAffectDescription(skillIndex, i, skillCurrentPercentage)
-				self.toolTip.AppendTextLine(description, 0xff95A693)
+			isActivated, currentAmount, totalAmount, slotIndex = player.GetAutoPotionInfo(potionType)
 
-			self.toolTip.ResizeToolTip()
+			#print "UpdateAutoPotionDescription ", isActivated, currentAmount, totalAmount, slotIndex
 
-	def UpdateAutoPotionDescription(self):
-		potionType = 0
-		if self.affect == chr.NEW_AFFECT_AUTO_HP_RECOVERY:
-			potionType = player.AUTO_POTION_TYPE_HP
-		else:
-			potionType = player.AUTO_POTION_TYPE_SP
+			amountPercent = 0.0
 
-		isActivated, currentAmount, totalAmount, slotIndex = player.GetAutoPotionInfo(potionType)
-		amountPercent = 0.0
-		try:
-			amountPercent = (float(currentAmount) / totalAmount) * 100.0
-		except:
-			amountPercent = 100.0
+			try:
+				amountPercent = (float(currentAmount) / totalAmount) * 100.0
+			except:
+				amountPercent = 100.0
 
-		if app.ENABLE_RENEWAL_AFFECT_SHOWER:
-			self.toolTip.childrenList[-1].SetText(self.description % amountPercent)
-		else:
 			self.SetToolTipText(self.description % amountPercent, 0, 40)
 
-	def SetClock(self, isClocked):
-		self.isClocked = isClocked
-		if app.ENABLE_RENEWAL_AFFECT_SHOWER:
-			self.SetDescription(self.description)
+		def SetClock(self, isClocked):
+			self.isClocked = isClocked
 
-	def UpdateDescription(self):
-		if not self.isClocked:
-			self.__UpdateDescription2()
-			return
+		def UpdateDescription(self):
+			if not self.isClocked:
+				self.__UpdateDescription2()
+				return
 
-		if not self.description:
-			return
+			if not self.description:
+				return
 
-		if app.ENABLE_RENEWAL_AFFECT_SHOWER:
-			if self.endTime > 0:
-				leftTime = self.FormatTime(self.endTime - app.GetGlobalTimeStamp())
-				timeText = "(%s : %s)" % (localeInfo.LEFT_TIME, leftTime)
-				timeLine = None
-				for line in self.toolTip.childrenList:
-					if "(%s :" % localeInfo.LEFT_TIME in line.GetText():
-						timeLine = line
-						break
-
-				if timeLine:
-					timeLine.SetText(timeText)
-					timeLine.SetPackedFontColor(0xffC5C7C4)
-				else:
-					self.toolTip.AppendTextLine(timeText, 0xffC5C7C4)
-			self.toolTip.ResizeToolTip()
-		else:
 			toolTip = self.description
 			if self.endTime > 0:
 				leftTime = localeInfo.SecondToDHM(self.endTime - app.GetGlobalTimeStamp())
 				toolTip += " (%s : %s)" % (localeInfo.LEFT_TIME, leftTime)
 			self.SetToolTipText(toolTip, 0, 40)
 
-	def __UpdateDescription2(self):
-		if not self.description:
-			return
+		def __UpdateDescription2(self):
+			if not self.description:
+				return
 
-		toolTip = self.description
-		self.SetToolTipText(toolTip, 0, 40)
+			toolTip = self.description
+			self.SetToolTipText(toolTip, 0, 40)
 
-	def SetSkillAffectFlag(self, flag):
-		self.isSkillAffect = flag
+		def SetSkillAffectFlag(self, flag):
+			self.isSkillAffect = flag
 
-	def IsSkillAffect(self):
-		return self.isSkillAffect
+		def IsSkillAffect(self):
+			return self.isSkillAffect
 
-	def OnMouseOverIn(self):
-		if app.ENABLE_RENEWAL_AFFECT_SHOWER:
-			self.SetScale(0.9,0.9)
-			self.toolTip.ShowToolTip()
-		else:
+		def OnMouseOverIn(self):
 			if self.toolTipText:
 				self.toolTipText.Show()
 
-	def OnMouseOverOut(self):
-		if app.ENABLE_RENEWAL_AFFECT_SHOWER:
-			self.SetScale(0.7, 0.7)
-			self.toolTip.HideToolTip()
-		else:
+		def OnMouseOverOut(self):
 			if self.toolTipText:
 				self.toolTipText.Hide()
-
 
 # search:
 
@@ -348,14 +436,46 @@ class AffectImage(ui.ExpandedImageBox):
 
 #search:
 
+			if affect == chr.NEW_AFFECT_EXP_BONUS_EURO_FREE or\
+				affect == chr.NEW_AFFECT_EXP_BONUS_EURO_FREE_UNDER_15 or\
+				self.INFINITE_AFFECT_DURATION < duration:
+				image.SetClock(False)
+				image.UpdateDescription()
 			elif affect == chr.NEW_AFFECT_AUTO_SP_RECOVERY or affect == chr.NEW_AFFECT_AUTO_HP_RECOVERY:
 				image.UpdateAutoPotionDescription()
+			else:
+				image.UpdateDescription()
 
-#add:
+#replace:
 
-			elif affect == SkillIndexToAffect and app.ENABLE_RENEWAL_AFFECT_SHOWER:
+			if affect == SkillIndexToAffect and app.ENABLE_RENEWAL_AFFECT_SHOWER:
 				skillIndex = player.AffectIndexToSkillIndex(SkillIndexToAffect)
-				image.UpdateSkillDescription(skillIndex)
+				image.SetSkillIndex(skillIndex)
+				image.SetSkillAffectFlag(True)  # Activate the flag for skills
+				image.UpdateSkillDescription()
+			else:
+				image.SetSkillAffectFlag(False)  # Deactivate the flag for other affects
+				if affect == chr.NEW_AFFECT_EXP_BONUS_EURO_FREE or\
+					affect == chr.NEW_AFFECT_EXP_BONUS_EURO_FREE_UNDER_15 or\
+					self.INFINITE_AFFECT_DURATION < duration:
+					if not app.ENABLE_RENEWAL_AFFECT_SHOWER:
+						image.SetClock(False)
+					image.UpdateDescription()
+				elif affect == chr.NEW_AFFECT_AUTO_SP_RECOVERY or affect == chr.NEW_AFFECT_AUTO_HP_RECOVERY:
+					image.UpdateAutoPotionDescription()
+				else:
+					image.UpdateDescription()
+
+## Search:
+	def BINARY_NEW_AddAffect(self, type, pointIdx, value, duration):
+		[...]
+			image.SetSkillAffectFlag(False)
+
+## replace with:
+	def BINARY_NEW_AddAffect(self, type, pointIdx, value, duration):
+		[...]
+			if not app.ENABLE_RENEWAL_AFFECT_SHOWER:
+				image.SetSkillAffectFlag(False)
 
 ## Search:
 	def BINARY_NEW_AddAffect(self, type, pointIdx, value, duration):
@@ -383,6 +503,22 @@ class AffectImage(ui.ExpandedImageBox):
 	if app.ENABLE_RENEWAL_AFFECT_SHOWER:
 		def BINARY_NEW_RefreshAffect(self):
 			self.__ArrangeImageList()
+
+## Search:
+	def __AppendAffect(self, affect):
+		[...]
+		image.SetToolTipText(name, 0, 40)
+
+## replace with:
+	def __AppendAffect(self, affect):
+		[...]
+		if app.ENABLE_RENEWAL_AFFECT_SHOWER:
+			if skillIndex != 0:
+				image.UpdateSkillDescription()
+			else:
+				image.SetToolTipText(name)
+		else:
+			image.SetToolTipText(name, 0, 40)
 
 
 ## find:
@@ -449,3 +585,63 @@ class AffectImage(ui.ExpandedImageBox):
 			for image in self.affectImageDict.values():
 				image.SetPosition(xPos, 0)
 				xPos += self.IMAGE_STEP
+
+## Search:
+	def OnUpdate(self):
+		[...]
+				for image in self.affectImageDict.values():
+					if image.GetAffect() == chr.NEW_AFFECT_AUTO_HP_RECOVERY or image.GetAffect() == chr.NEW_AFFECT_AUTO_SP_RECOVERY:
+						image.UpdateAutoPotionDescription()
+						continue
+
+					if not image.IsSkillAffect():
+						image.UpdateDescription()
+
+## replace with:
+	def OnUpdate(self):
+		[...]
+				if app.ENABLE_RENEWAL_AFFECT_SHOWER:
+					if image.isToolTipVisible:
+						if image.GetAffect() in [chr.NEW_AFFECT_AUTO_HP_RECOVERY, chr.NEW_AFFECT_AUTO_SP_RECOVERY]:
+							image.UpdateAutoPotionDescription()
+							continue
+
+						if image.IsSkillAffect():
+							image.UpdateSkillDescription()
+							continue
+
+						if not image.IsSkillAffect():
+							image.UpdateDescription()
+				else:
+					if image.GetAffect() == chr.NEW_AFFECT_AUTO_HP_RECOVERY or image.GetAffect() == chr.NEW_AFFECT_AUTO_SP_RECOVERY:
+						image.UpdateAutoPotionDescription()
+						continue
+
+					if not image.IsSkillAffect():
+						image.UpdateDescription()
+
+
+# search 
+
+	def OnUpdate(self):
+
+# add:
+
+	if app.ENABLE_RENEWAL_AFFECT_SHOWER:
+		def SyncAffectImages(self):
+			for image in self.affectImageDict.values():
+				image.isToolTipVisible = False  # Reset tooltip status
+				image.toolTip.HideToolTip()  # Ensure that the tooltip is initially hidden.
+
+
+# Search:
+
+	def __init__(self):
+		ui.Window.__init__(self)
+
+# add before
+
+	if app.ENABLE_RENEWAL_AFFECT_SHOWER:
+		def Show(self):
+			ui.Window.Show(self)
+			self.SyncAffectImages()
