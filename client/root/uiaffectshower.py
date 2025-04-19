@@ -66,30 +66,7 @@ class HorseImage(ui.ExpandedImageBox):
 
 class AutoPotionImage(ui.ExpandedImageBox):
 
-# within the class AutoPotionImage search
-
-	def OnMouseOverIn(self):
-		self.toolTip.ShowToolTip()
-
-# add:
-
-		if app.ENABLE_RENEWAL_AFFECT_SHOWER:
-			self.SetScale(0.9,0.9)
-
-# Search:
-
-class AutoPotionImage(ui.ExpandedImageBox):
-
-# within the class AutoPotionImage search
-
-	def OnMouseOverOut(self):
-		self.toolTip.HideToolTip()
-
-# add:
-
-		if app.ENABLE_RENEWAL_AFFECT_SHOWER:
-			self.SetScale(0.7, 0.7)
-
+#removes the class it is not necessary to use it, it is preferable if you want to keep unused code.
 
 # update, set your old class to else:
 
@@ -99,17 +76,30 @@ class AffectImage(ui.ExpandedImageBox):
 
 if app.ENABLE_RENEWAL_AFFECT_SHOWER:
 	class AffectImage(ui.ExpandedImageBox):
+		NORMAL_COLOR = 0xffC5C7C4
+		BONUS_COLOR = 0xff95A693
+		WHITE_COLOR = 0xffffffff
 		def __init__(self):
 			ui.ExpandedImageBox.__init__(self)
-
 			self.toolTip = uiToolTip.ToolTip()
 			self.toolTip.HideToolTip()
-			self.isToolTipVisible = False  # The tooltip is not initially visible
-			self.skillIndex = None  # New attribute to store the skill index
+			self.isToolTipVisible = False 
+			self.skillIndex = None
+			self.priority = 0
+			self.Canberemoved = False
 			self.isSkillAffect = True
 			self.description = None
 			self.endTime = 0
 			self.affect = None
+
+		def SetCanberemoved(self, Canberemoved):
+			self.Canberemoved = Canberemoved
+
+		def SetPriority(self, priority):
+			self.priority = priority
+
+		def GetPriority(self):
+			return self.priority
 
 		def SetAffect(self, affect):
 			self.affect = affect
@@ -118,15 +108,15 @@ if app.ENABLE_RENEWAL_AFFECT_SHOWER:
 			return self.affect
 
 		def SetToolTipText(self, text):
-			# Check if the text is already configured
 			if hasattr(self, "currentToolTipText") and self.currentToolTipText == text:
-				return  # Do nothing if text is already configured
+				return
 
 			self.toolTip.ClearToolTip()
-			self.toolTip.AppendTextLine(text, 0xffffffff)
+			self.toolTip.AutoAppendTextLine(text, self.WHITE_COLOR)
+			if self.Canberemoved:
+				self.toolTip.AutoAppendTextLine(localeInfo.AFFECTSHOWER_REMOVE_TEXT, self.NORMAL_COLOR)
 			self.toolTip.AlignHorizonalCenter()
 			self.toolTip.ResizeToolTip()
-			# Store current text
 			self.currentToolTipText = text
 
 		def SetDescription(self, description):
@@ -146,8 +136,10 @@ if app.ENABLE_RENEWAL_AFFECT_SHOWER:
 			potionType = 0
 			if self.affect == chr.NEW_AFFECT_AUTO_HP_RECOVERY:
 				potionType = player.AUTO_POTION_TYPE_HP
+				PotionName = localeInfo.TOOLTIP_AUTO_POTION_HP
 			else:
 				potionType = player.AUTO_POTION_TYPE_SP
+				PotionName = localeInfo.TOOLTIP_AUTO_POTION_SP
 
 			isActivated, currentAmount, totalAmount, slotIndex = player.GetAutoPotionInfo(potionType)
 
@@ -158,24 +150,21 @@ if app.ENABLE_RENEWAL_AFFECT_SHOWER:
 			except:
 				amountPercent = 100.0
 
-			# Clean the tooltip before upgrading
 			self.toolTip.ClearToolTip()
+			self.toolTip.AutoAppendTextLine(PotionName, self.WHITE_COLOR)
+			self.toolTip.AutoAppendTextLine(self.description % amountPercent, self.NORMAL_COLOR)
 
-			# Add the description of the automatic potion
-			self.toolTip.AppendTextLine(self.description % amountPercent, 0xffC5C7C4)
-
-			# Resize the tooltip
+			self.toolTip.AlignHorizonalCenter()
 			self.toolTip.ResizeToolTip()
 
 		def FormatTime(self, time):
 			if time < 0:
-				return "0s"  # Be sure to manage negative times
+				return "0s"
 
 			(d, remainder) = divmod(time, 86400)
 			(h, remainder) = divmod(remainder, 3600)
 			(m, s) = divmod(remainder, 60)
 
-			# Create a list of non-empty values
 			time_parts = [
 				"{}d".format(d) if d > 0 else "",
 				"{}h".format(h) if h > 0 else "",
@@ -183,67 +172,60 @@ if app.ENABLE_RENEWAL_AFFECT_SHOWER:
 				"{}s".format(s) if s > 0 else "",
 			]
 
-			# Filter out empty values and join them with a space
 			formatted_time = " ".join(filter(None, time_parts))
 			return formatted_time
 
 		def UpdateDescription(self):
-			# Verify that the tooltip is initialized
 			if not self.toolTip:
 				return
 
-			# Verify that the description is configured
 			if not self.description:
 				return
 
-			# Clean the tooltip before upgrading
 			self.toolTip.ClearToolTip()
 
-			# Add the main description
-			self.toolTip.AppendTextLine(self.description, 0xffC5C7C4)
-
-			# Add remaining time if necessary
+			self.toolTip.AutoAppendTextLine(self.description, self.WHITE_COLOR)
 			if self.endTime > 0:
 				remaining_time = self.endTime - app.GetGlobalTimeStamp()
 				leftTime = self.FormatTime(remaining_time)
 				timeText = "(%s : %s)" % (localeInfo.LEFT_TIME, leftTime)
-				self.toolTip.AppendTextLine(timeText, 0xffC5C7C4)
+				self.toolTip.AutoAppendTextLine(timeText, self.NORMAL_COLOR)
 
-			# Resize the tooltip
+			if self.Canberemoved:
+				self.toolTip.AutoAppendTextLine(localeInfo.AFFECTSHOWER_REMOVE_TEXT, self.NORMAL_COLOR)
+
+			self.toolTip.AlignHorizonalCenter()
 			self.toolTip.ResizeToolTip()
 
 		def SetSkillIndex(self, skillIndex):
-			"""Sets the skill index for this instance."""
 			self.skillIndex = skillIndex
 
 		def UpdateSkillDescription(self):
-			"""Updates the skill description using the stored index."""
 			if self.skillIndex is None:
-				return  # If there is no skill index, do nothing.
+				return
 
 			slotIndex = player.GetSkillSlotIndex(self.skillIndex)
 			skillCurrentPercentage = player.GetSkillCurrentEfficientPercentage(slotIndex)
 
-			# Clean the tooltip before upgrading
 			self.toolTip.ClearToolTip()
 
-			# Add the name of the skill
 			skillName = skill.GetSkillName(self.skillIndex)
-			self.toolTip.AppendTextLine(skillName, 0xffffffff)
+			self.toolTip.AutoAppendTextLine(skillName, self.WHITE_COLOR)
 
-			# Add skill descriptions
 			for i in xrange(skill.GetSkillAffectDescriptionCount(self.skillIndex)):
 				description = skill.GetSkillAffectDescription(self.skillIndex, i, skillCurrentPercentage)
-				self.toolTip.AppendTextLine(description, 0xff95A693)
+				self.toolTip.AutoAppendTextLine(description, self.BONUS_COLOR)
 
-			# Add remaining time if necessary
 			if self.endTime > 0:
 				remaining_time = self.endTime - app.GetGlobalTimeStamp()
 				leftTime = self.FormatTime(remaining_time)
 				timeText = "(%s : %s)" % (localeInfo.LEFT_TIME, leftTime)
-				self.toolTip.AppendTextLine(timeText, 0xffC5C7C4)
+				self.toolTip.AutoAppendTextLine(timeText, self.NORMAL_COLOR)
 
-			# Resize the tooltip
+			if self.Canberemoved:
+				self.toolTip.AutoAppendTextLine(localeInfo.AFFECTSHOWER_REMOVE_TEXT, self.NORMAL_COLOR)
+
+			self.toolTip.AlignHorizonalCenter()
 			self.toolTip.ResizeToolTip()
 
 		def SetSkillAffectFlag(self, flag):
@@ -256,13 +238,13 @@ if app.ENABLE_RENEWAL_AFFECT_SHOWER:
 			self.SetScale(0.9,0.9)
 			if self.toolTip:
 				self.toolTip.ShowToolTip()
-				self.isToolTipVisible = True  # Mark the tooltip as visible
+				self.isToolTipVisible = True
 
 		def OnMouseOverOut(self):
 			self.SetScale(0.7,0.7)
 			if self.toolTip:
 				self.toolTip.HideToolTip()
-				self.isToolTipVisible = False  # Mark the tooltip as not visible
+				self.isToolTipVisible = False
 else:
 	class AffectImage(ui.ExpandedImageBox):
 
@@ -384,125 +366,180 @@ else:
 #search:
 
 	def BINARY_NEW_AddAffect(self, type, pointIdx, value, duration):
-		print "BINARY_NEW_AddAffect", type, pointIdx, value, duration
 
-		if type < 500:
-			return
+#add before
 
-# replace
+	if app.ENABLE_RENEWAL_AFFECT_SHOWER:
+		def CalculatePriority(self, affect):
+			# check PRIORITY_FIRST o PRIORITY_LAST
+			if affect in PRIORITY_FIRST:
+				return 2  # hight priority
+			elif affect in PRIORITY_LAST:
+				return 5  # low priority
+
+			##changes to organize the list if you use the display system waters, dew and blessings from quin
+			priority_ranges = [
+				(self.MALL_DESC_IDX_START, self.WATER_DESC_IDX_START, 4),
+				# (self.WATER_DESC_IDX_START, self.DEW_DESC_IDX_START, 6),
+				# (self.DEW_DESC_IDX_START, self.DEW_DESC_IDX_START + self.DEW_RANGE_OFFSET, 4),
+			]
+
+			for start, end, priority in priority_ranges:
+				if start <= affect < end:
+					return priority
+
+			skillIndex = player.AffectIndexToSkillIndex(affect)
+			if skillIndex != 0:
+				return 1
+			return 3
+			
+#search:
+
+	def BINARY_NEW_AddAffect(self, type, pointIdx, value, duration):
+
+
+#verifies the changes and adds 
 
 	def BINARY_NEW_AddAffect(self, type, pointIdx, value, duration):
 		print "BINARY_NEW_AddAffect", type, pointIdx, value, duration
-
 		if app.ENABLE_RENEWAL_AFFECT_SHOWER:
-			SkillIndexToAffect = player.SkillIndexToAffectIndex(type)
-			AffectToskillIndex = player.AffectIndexToSkillIndex(SkillIndexToAffect)
-
-			#here you can add new effects that do not require you to define them, 
-			#for example the polymorph and if you want to add the blend
+			affect = player.SkillIndexToAffectIndex(type)
+			if affect == 0:
+				affect = type
+			original_affect = affect
 			allowed_affects = [
 				chr.NEW_AFFECT_POLYMORPH,
 			]
-			#note in this way you can add new affect to show that you have defined, 
-			# for example I created an affect to load by time the opening of the remote shop.
 			# if app.BL_REMOTE_SHOP:
 				# allowed_affects.append(chr.AFFECT_REMOTE_SHOP)
 
-			if type < 500 and type not in allowed_affects and not type == AffectToskillIndex:
+			Skill_affects = [
+				chr.AFFECT_JEONGWI,
+				chr.AFFECT_GEOMGYEONG,
+				chr.AFFECT_CHEONGEUN,
+				chr.AFFECT_FALLEN_CHEONGEUN,
+				chr.AFFECT_GYEONGGONG,
+				chr.AFFECT_EUNHYEONG,
+				chr.AFFECT_GWIGEOM,
+				chr.AFFECT_GONGPO,
+				chr.AFFECT_JUMAGAP,
+				chr.AFFECT_HOSIN,
+				chr.AFFECT_BOHO,
+				chr.AFFECT_KWAESOK,
+				chr.AFFECT_HEUKSIN,
+				chr.AFFECT_MUYEONG,
+				chr.AFFECT_GICHEON,
+				chr.AFFECT_JEUNGRYEOK,
+				chr.AFFECT_PABEOP,
+			]
+
+			if type < 500 and type not in allowed_affects and affect not in Skill_affects:
 				return
 		else:
 			if type < 500:
 				return
 
-# Search:
-
-		if not self.AFFECT_DATA_DICT.has_key(affect):
-			return
-
-#replace:
+		if type == chr.NEW_AFFECT_MALL:
+			affect = self.MALL_DESC_IDX_START + pointIdx
+		else:
+			if app.ENABLE_RENEWAL_AFFECT_SHOWER:
+				affect = original_affect
+			else:
+				affect = type
 
 		if app.ENABLE_RENEWAL_AFFECT_SHOWER:
-			if affect not in self.AFFECT_DATA_DICT:
-				converted_affect = player.SkillIndexToAffectIndex(affect)
-				if converted_affect in self.AFFECT_DATA_DICT:
-					affect = converted_affect
-				else:
-					# If unable to convert, stop the flow
-					# chat.AppendChat(chat.CHAT_TYPE_INFO, "Affect not found for skillIndex: " + str(affect))
+			if self.affectImageDict.get(affect):
+				if player.AffectIndexToSkillIndex(affect) == 0:
 					return
 		else:
-			if not self.AFFECT_DATA_DICT.has_key(affect):
+			if self.affectImageDict.get(affect):
 				return
 
-#search:
+		if affect not in self.AFFECT_DATA_DICT:
+			return
 
-			if affect == chr.NEW_AFFECT_EXP_BONUS_EURO_FREE or\
-				affect == chr.NEW_AFFECT_EXP_BONUS_EURO_FREE_UNDER_15 or\
-				self.INFINITE_AFFECT_DURATION < duration:
-				image.SetClock(False)
-				image.UpdateDescription()
-			elif affect == chr.NEW_AFFECT_AUTO_SP_RECOVERY or affect == chr.NEW_AFFECT_AUTO_HP_RECOVERY:
-				image.UpdateAutoPotionDescription()
-			else:
-				image.UpdateDescription()
+		if app.ENABLE_RENEWAL_AFFECT_SHOWER:
+			priority = self.CalculatePriority(affect)
 
-#replace:
+		if affect in [
+			chr.NEW_AFFECT_NO_DEATH_PENALTY,
+			chr.NEW_AFFECT_SKILL_BOOK_BONUS,
+			chr.NEW_AFFECT_AUTO_SP_RECOVERY,
+			chr.NEW_AFFECT_AUTO_HP_RECOVERY,
+			chr.NEW_AFFECT_SKILL_BOOK_NO_DELAY,
+		]:
+			duration = 0
 
-			if affect == SkillIndexToAffect and app.ENABLE_RENEWAL_AFFECT_SHOWER:
-				skillIndex = player.AffectIndexToSkillIndex(SkillIndexToAffect)
+		affectData = self.AFFECT_DATA_DICT[affect]
+		description = affectData[0]
+		filename = affectData[1]
+
+		if pointIdx == player.POINT_MALL_ITEMBONUS or\
+		   pointIdx == player.POINT_MALL_GOLDBONUS:
+			value = 1 + float(value) / 100.0
+
+		if affect != chr.NEW_AFFECT_AUTO_SP_RECOVERY and affect != chr.NEW_AFFECT_AUTO_HP_RECOVERY:
+			if callable(description):
+				description = description(float(value))
+
+		try:
+			print "Add affect %s" % affect
+			image = AffectImage()
+			image.SetParent(self)
+			image.LoadImage(filename)
+			image.SetDescription(description)
+			image.SetDuration(duration)
+			image.SetAffect(affect)
+
+			if affect == player.SkillIndexToAffectIndex(type) and app.ENABLE_RENEWAL_AFFECT_SHOWER:
+				skillIndex = player.AffectIndexToSkillIndex(player.SkillIndexToAffectIndex(type))
 				image.SetSkillIndex(skillIndex)
-				image.SetSkillAffectFlag(True)  # Activate the flag for skills
+				image.SetSkillAffectFlag(True)
+				image.SetCanberemoved(True)
 				image.UpdateSkillDescription()
+				image.SetEvent(ui.__mem_func__(self.__QuestionRemoveAffect),"mouse_click", skillIndex, description)
 			else:
-				image.SetSkillAffectFlag(False)  # Deactivate the flag for other affects
-				if affect == chr.NEW_AFFECT_EXP_BONUS_EURO_FREE or\
-					affect == chr.NEW_AFFECT_EXP_BONUS_EURO_FREE_UNDER_15 or\
-					self.INFINITE_AFFECT_DURATION < duration:
+				image.SetSkillAffectFlag(False)
+				EXP_BONUS_AFFECTS = {chr.NEW_AFFECT_EXP_BONUS_EURO_FREE, chr.NEW_AFFECT_EXP_BONUS_EURO_FREE_UNDER_15}
+				AUTO_POTION_AFFECTS = {chr.NEW_AFFECT_AUTO_SP_RECOVERY, chr.NEW_AFFECT_AUTO_HP_RECOVERY}
+				if affect in EXP_BONUS_AFFECTS or self.INFINITE_AFFECT_DURATION < duration:
 					if not app.ENABLE_RENEWAL_AFFECT_SHOWER:
 						image.SetClock(False)
 					image.UpdateDescription()
-				elif affect == chr.NEW_AFFECT_AUTO_SP_RECOVERY or affect == chr.NEW_AFFECT_AUTO_HP_RECOVERY:
+				elif affect in AUTO_POTION_AFFECTS:
 					image.UpdateAutoPotionDescription()
+				elif affect == chr.NEW_AFFECT_POLYMORPH and app.ENABLE_RENEWAL_AFFECT_SHOWER:
+					image.UpdateDescription()
+					image.SetCanberemoved(True)
+					image.SetEvent(ui.__mem_func__(self.__QuestionRemoveAffect),"mouse_click", affect, description)
 				else:
 					image.UpdateDescription()
 
+			DRAGON_SOUL_AFFECTS = {chr.NEW_AFFECT_DRAGON_SOUL_DECK1, chr.NEW_AFFECT_DRAGON_SOUL_DECK2}
+			if affect in DRAGON_SOUL_AFFECTS:
+				image.SetScale(1, 1)
+			else:
+				image.SetScale(0.7, 0.7)
+
+			if app.ENABLE_RENEWAL_AFFECT_SHOWER:
+				image.SetPriority(priority)
+
+			image.Show()
+			self.affectImageDict[affect] = image
+			self.__ArrangeImageList()
+		except Exception, e:
+			print "except Aff affect ", e
+			pass
+
 ## Search:
-	def BINARY_NEW_AddAffect(self, type, pointIdx, value, duration):
+	def __AppendAffect(self, affect):
 		[...]
-			image.SetSkillAffectFlag(False)
+		image.SetSkillAffectFlag(True)
 
-## replace with:
-	def BINARY_NEW_AddAffect(self, type, pointIdx, value, duration):
-		[...]
-			if not app.ENABLE_RENEWAL_AFFECT_SHOWER:
-				image.SetSkillAffectFlag(False)
-
-## Search:
-	def BINARY_NEW_AddAffect(self, type, pointIdx, value, duration):
-		[...]
-			self.__ArrangeImageList()
-
-## replace with:
-	def BINARY_NEW_AddAffect(self, type, pointIdx, value, duration):
-		[...]
-			if not app.ENABLE_RENEWAL_AFFECT_SHOWER:
-				self.__ArrangeImageList()
-
-## find:
-	def BINARY_NEW_RemoveAffect(self, type, pointIdx):
-		[...]
-		self.__ArrangeImageList()
-
-## replace with:
-	def BINARY_NEW_RemoveAffect(self, type, pointIdx):
-		[...]
-		if not app.ENABLE_RENEWAL_AFFECT_SHOWER:
-			self.__ArrangeImageList()
-
-## paste below:
-	if app.ENABLE_RENEWAL_AFFECT_SHOWER:
-		def BINARY_NEW_RefreshAffect(self):
-			self.__ArrangeImageList()
+#add
+		if app.ENABLE_RENEWAL_AFFECT_SHOWER:
+			priority = self.CalculatePriority(affect)
+			image.SetPriority(priority)
 
 ## Search:
 	def __AppendAffect(self, affect):
@@ -514,7 +551,9 @@ else:
 		[...]
 		if app.ENABLE_RENEWAL_AFFECT_SHOWER:
 			if skillIndex != 0:
-				image.UpdateSkillDescription()
+				image.SetCanberemoved(True)
+				image.SetToolTipText(name)
+				image.SetEvent(ui.__mem_func__(self.__QuestionRemoveAffect),"mouse_click", skillIndex, name)
 			else:
 				image.SetToolTipText(name)
 		else:
@@ -529,25 +568,26 @@ else:
 
 	if app.ENABLE_RENEWAL_AFFECT_SHOWER:
 		def __ArrangeImageList(self):
-			xPos = 0
-			yPos = 0
+			ordered_elements = sorted(
+				self.affectImageDict.values(),
+				key=lambda image: image.GetPriority()
+			)
 
+			xPos, yPos = 0, 0
 			xMax = 0
-
 			countRow = 0
 
-			if self.lovePointImage:
-				if self.lovePointImage.IsShow():
-					self.lovePointImage.SetPosition(xPos, yPos)
-					xPos += self.IMAGE_STEP
-					countRow += 1
+			if self.lovePointImage and self.lovePointImage.IsShow():
+				self.lovePointImage.SetPosition(xPos, yPos)
+				xPos += self.IMAGE_STEP
+				countRow += 1
 
 			if self.horseImage:
 				self.horseImage.SetPosition(xPos, yPos)
 				xPos += self.IMAGE_STEP
 				countRow += 1
 
-			for image in self.affectImageDict.values():
+			for count, image in enumerate(ordered_elements):
 				image.SetPosition(xPos, yPos)
 				xPos += self.IMAGE_STEP
 				countRow += 1
@@ -555,12 +595,12 @@ else:
 				if xMax < xPos:
 					xMax = xPos
 
-				if countRow == 10:
+				if countRow == self.MAX_ITEMS_PER_ROW:
 					xPos = 0
 					yPos += self.IMAGE_STEP
 					countRow = 0
 
-			self.SetSize(xMax, yPos + 26)
+			self.SetSize(xMax if xMax > 0 else self.IMAGE_STEP * self.MAX_ITEMS_PER_ROW, yPos + 26)
 	else:
 		def __ArrangeImageList(self):
 			width = len(self.affectImageDict) * self.IMAGE_STEP
@@ -589,36 +629,27 @@ else:
 ## Search:
 	def OnUpdate(self):
 		[...]
-				for image in self.affectImageDict.values():
-					if image.GetAffect() == chr.NEW_AFFECT_AUTO_HP_RECOVERY or image.GetAffect() == chr.NEW_AFFECT_AUTO_SP_RECOVERY:
-						image.UpdateAutoPotionDescription()
-						continue
 
-					if not image.IsSkillAffect():
-						image.UpdateDescription()
 
 ## replace with:
 	def OnUpdate(self):
-		[...]
-				if app.ENABLE_RENEWAL_AFFECT_SHOWER:
-					if image.isToolTipVisible:
-						if image.GetAffect() in [chr.NEW_AFFECT_AUTO_HP_RECOVERY, chr.NEW_AFFECT_AUTO_SP_RECOVERY]:
-							image.UpdateAutoPotionDescription()
-							continue
+		try:
+			currentTime = app.GetGlobalTime()
+			if currentTime - self.lastUpdateTime > self.TOOLTIP_UPDATE_INTERVAL:
+				self.lastUpdateTime = currentTime
 
-						if image.IsSkillAffect():
-							image.UpdateSkillDescription()
-							continue
-
-						if not image.IsSkillAffect():
-							image.UpdateDescription()
-				else:
-					if image.GetAffect() == chr.NEW_AFFECT_AUTO_HP_RECOVERY or image.GetAffect() == chr.NEW_AFFECT_AUTO_SP_RECOVERY:
-						image.UpdateAutoPotionDescription()
+				for image in self.affectImageDict.values():
+					if not image.isToolTipVisible:
 						continue
 
-					if not image.IsSkillAffect():
+					if image.GetAffect() in [chr.NEW_AFFECT_AUTO_HP_RECOVERY, chr.NEW_AFFECT_AUTO_SP_RECOVERY]:
+						image.UpdateAutoPotionDescription()
+					elif image.IsSkillAffect():
+						image.UpdateSkillDescription()
+					else:
 						image.UpdateDescription()
+		except Exception as e:
+			print "AffectShower::OnUpdate error:", e
 
 
 # search 
@@ -630,8 +661,25 @@ else:
 	if app.ENABLE_RENEWAL_AFFECT_SHOWER:
 		def SyncAffectImages(self):
 			for image in self.affectImageDict.values():
-				image.isToolTipVisible = False  # Reset tooltip status
-				image.toolTip.HideToolTip()  # Ensure that the tooltip is initially hidden.
+				image.isToolTipVisible = False
+				image.toolTip.HideToolTip()
+
+		def __QuestionRemoveAffect(self, arg, affect, name):
+			self.RemoveQuestionDialog = uiCommon.QuestionDialog()
+			self.RemoveQuestionDialog.SetText(localeInfo.AFFECT_REMOVE_QUESTION % name)
+			self.RemoveQuestionDialog.SetAcceptEvent(lambda arg=True: self.AnswerRemoveAffect(arg))
+			self.RemoveQuestionDialog.SetCancelEvent(lambda arg=False: self.AnswerRemoveAffect(arg))
+			self.RemoveQuestionDialog.affect = affect
+			self.RemoveQuestionDialog.Open()
+
+		def AnswerRemoveAffect(self, flag):
+			if not self.RemoveQuestionDialog:
+				return
+			if flag:
+				net.SendChatPacket("/remove_affect %d" % self.RemoveQuestionDialog.affect)
+			self.RemoveQuestionDialog.Close()
+			self.RemoveQuestionDialog = None
+
 
 
 # Search:
@@ -645,3 +693,17 @@ else:
 		def Show(self):
 			ui.Window.Show(self)
 			self.SyncAffectImages()
+
+
+#search:
+
+	MALL_DESC_IDX_START = 1000
+
+#add
+	if app.ENABLE_RENEWAL_AFFECT_SHOWER:
+		##changes to organize the list if you use the display system waters, dew and blessings from quin
+		WATER_DESC_IDX_START = 1200
+		DEW_DESC_IDX_START = 1400
+		DEW_RANGE_OFFSET = 200
+		TOOLTIP_UPDATE_INTERVAL = 500
+		MAX_ITEMS_PER_ROW = 10
