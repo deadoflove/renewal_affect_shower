@@ -4,7 +4,7 @@
 ACMD(do_remove_affect)
 {
 	if (!ch) {
-		sys_err("do_remove_affect: El personaje no es valido.");
+		sys_err("do_remove_affect: The character is not valid.");
 		return;
 	}
 
