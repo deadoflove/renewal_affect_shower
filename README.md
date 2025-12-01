@@ -15,4 +15,6 @@ added a dictionary to add new affect
 
 the code can be improved even more, but I wanted to give another small contribution
 
+Added updated code where necessary, added activate/deactivate function only for those who want to use it for something extra. Added code to deactivate polyform and abilities, code in modern C++.
+
 ![](https://github.com/deadoflove/renewal_affect_shower/blob/main/affect_shower.gif)

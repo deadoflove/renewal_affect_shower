@@ -1,5 +1,25 @@
 # Search:
 
+import uiToolTip
+
+#add:
+
+if app.ENABLE_RENEWAL_AFFECT_SHOWER:
+	import uiCommon, net
+	# Define priority lists
+	PRIORITY_FIRST = {
+		chr.NEW_AFFECT_AUTO_HP_RECOVERY,
+		chr.NEW_AFFECT_AUTO_SP_RECOVERY,
+		chr.AFFECT_ATT_SPEED_POTION,
+		chr.AFFECT_MOV_SPEED_POTION,
+	}  # These items will appear first
+
+	PRIORITY_LAST = {
+		chr.NEW_AFFECT_POLYMORPH,
+	}  # These elements will appear at the end
+
+# Search:
+
 class LovePointImage(ui.ExpandedImageBox):
 
 # within the class LovePointImage search
@@ -74,7 +94,7 @@ class AffectImage(ui.ExpandedImageBox):
 
 # replace
 
-if app.ENABLE_RENEWAL_AFFECT_SHOWER:
+iif app.ENABLE_RENEWAL_AFFECT_SHOWER:
 	class AffectImage(ui.ExpandedImageBox):
 		NORMAL_COLOR = 0xffC5C7C4
 		BONUS_COLOR = 0xff95A693
@@ -83,7 +103,7 @@ if app.ENABLE_RENEWAL_AFFECT_SHOWER:
 			ui.ExpandedImageBox.__init__(self)
 			self.toolTip = uiToolTip.ToolTip()
 			self.toolTip.HideToolTip()
-			self.isToolTipVisible = False 
+			self.isToolTipVisible = False
 			self.skillIndex = None
 			self.priority = 0
 			self.Canberemoved = False
@@ -153,27 +173,8 @@ if app.ENABLE_RENEWAL_AFFECT_SHOWER:
 			self.toolTip.ClearToolTip()
 			self.toolTip.AutoAppendTextLine(PotionName, self.WHITE_COLOR)
 			self.toolTip.AutoAppendTextLine(self.description % amountPercent, self.NORMAL_COLOR)
-
 			self.toolTip.AlignHorizonalCenter()
 			self.toolTip.ResizeToolTip()
-
-		def FormatTime(self, time):
-			if time < 0:
-				return "0s"
-
-			(d, remainder) = divmod(time, 86400)
-			(h, remainder) = divmod(remainder, 3600)
-			(m, s) = divmod(remainder, 60)
-
-			time_parts = [
-				"{}d".format(d) if d > 0 else "",
-				"{}h".format(h) if h > 0 else "",
-				"{}m".format(m) if m > 0 else "",
-				"{}s".format(s) if s > 0 else "",
-			]
-
-			formatted_time = " ".join(filter(None, time_parts))
-			return formatted_time
 
 		def UpdateDescription(self):
 			if not self.toolTip:
@@ -183,11 +184,11 @@ if app.ENABLE_RENEWAL_AFFECT_SHOWER:
 				return
 
 			self.toolTip.ClearToolTip()
-
 			self.toolTip.AutoAppendTextLine(self.description, self.WHITE_COLOR)
+
 			if self.endTime > 0:
 				remaining_time = self.endTime - app.GetGlobalTimeStamp()
-				leftTime = self.FormatTime(remaining_time)
+				leftTime = localeInfo.FormatTime(remaining_time)
 				timeText = "(%s : %s)" % (localeInfo.LEFT_TIME, leftTime)
 				self.toolTip.AutoAppendTextLine(timeText, self.NORMAL_COLOR)
 
@@ -206,7 +207,6 @@ if app.ENABLE_RENEWAL_AFFECT_SHOWER:
 
 			slotIndex = player.GetSkillSlotIndex(self.skillIndex)
 			skillCurrentPercentage = player.GetSkillCurrentEfficientPercentage(slotIndex)
-
 			self.toolTip.ClearToolTip()
 
 			skillName = skill.GetSkillName(self.skillIndex)
@@ -218,7 +218,7 @@ if app.ENABLE_RENEWAL_AFFECT_SHOWER:
 
 			if self.endTime > 0:
 				remaining_time = self.endTime - app.GetGlobalTimeStamp()
-				leftTime = self.FormatTime(remaining_time)
+				leftTime = localeInfo.FormatTime(remaining_time)
 				timeText = "(%s : %s)" % (localeInfo.LEFT_TIME, leftTime)
 				self.toolTip.AutoAppendTextLine(timeText, self.NORMAL_COLOR)
 
@@ -245,6 +245,7 @@ if app.ENABLE_RENEWAL_AFFECT_SHOWER:
 			if self.toolTip:
 				self.toolTip.HideToolTip()
 				self.isToolTipVisible = False
+else:
 else:
 	class AffectImage(ui.ExpandedImageBox):
 
@@ -348,6 +349,17 @@ else:
 			if self.toolTipText:
 				self.toolTipText.Hide()
 
+# Search:
+	MALL_DESC_IDX_START = 1000
+
+# add
+	if app.ENABLE_RENEWAL_AFFECT_SHOWER:
+		WATER_DESC_IDX_START = 1200
+		DEW_DESC_IDX_START = 1400
+		DEW_RANGE_OFFSET = 200
+		TOOLTIP_UPDATE_INTERVAL = 500
+		MAX_ITEMS_PER_ROW = 10
+
 # search:
 
 	if app.ENABLE_DRAGON_SOUL_SYSTEM:
@@ -362,6 +374,34 @@ else:
 
 	if app.ENABLE_RENEWAL_AFFECT_SHOWER:
 		AFFECT_DATA_DICT[chr.NEW_AFFECT_POLYMORPH] =  (localeInfo.POLYMORPH_AFFECT_TOOLTIP, "icon/item/70104.tga")
+
+
+
+# Search:
+
+	def __init__(self):
+		ui.Window.__init__(self)
+
+# add before
+
+	if app.ENABLE_RENEWAL_AFFECT_SHOWER:
+		def Show(self):
+			ui.Window.Show(self)
+			self.SyncAffectImages()
+
+#search:
+
+	def __init__(self):
+
+#inside, look
+
+		self.lovePointImage=None
+		
+#add:
+
+		if app.ENABLE_RENEWAL_AFFECT_SHOWER:
+			self.RemoveQuestionDialog = None
+
 
 #search:
 
@@ -392,7 +432,6 @@ else:
 			if skillIndex != 0:
 				return 1
 			return 3
-			
 #search:
 
 	def BINARY_NEW_AddAffect(self, type, pointIdx, value, duration):
@@ -410,8 +449,8 @@ else:
 			allowed_affects = [
 				chr.NEW_AFFECT_POLYMORPH,
 			]
-			# if app.BL_REMOTE_SHOP:
-				# allowed_affects.append(chr.AFFECT_REMOTE_SHOP)
+			if app.BL_REMOTE_SHOP:
+				allowed_affects.append(chr.AFFECT_REMOTE_SHOP)
 
 			Skill_affects = [
 				chr.AFFECT_JEONGWI,
@@ -682,28 +721,5 @@ else:
 
 
 
-# Search:
-
-	def __init__(self):
-		ui.Window.__init__(self)
-
-# add before
-
-	if app.ENABLE_RENEWAL_AFFECT_SHOWER:
-		def Show(self):
-			ui.Window.Show(self)
-			self.SyncAffectImages()
 
 
-#search:
-
-	MALL_DESC_IDX_START = 1000
-
-#add
-	if app.ENABLE_RENEWAL_AFFECT_SHOWER:
-		##changes to organize the list if you use the display system waters, dew and blessings from quin
-		WATER_DESC_IDX_START = 1200
-		DEW_DESC_IDX_START = 1400
-		DEW_RANGE_OFFSET = 200
-		TOOLTIP_UPDATE_INTERVAL = 500
-		MAX_ITEMS_PER_ROW = 10

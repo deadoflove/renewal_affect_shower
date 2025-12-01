@@ -82,3 +82,17 @@ CPythonPlayer::CPythonPlayer(void)
 #endif
 
 #endif
+
+// If you use any system to hide or show the affects, you can use this.
+
+#if defined(ENABLE_RENEWAL_AFFECT_SHOWER)
+void CPythonPlayer::ShowAffectShower()
+{
+	PyCallClassMemberFunc(m_ppyGameWindow, "ShowAffectShower", Py_BuildValue("()"));
+}
+
+void CPythonPlayer::HideAffectShower()
+{
+	PyCallClassMemberFunc(m_ppyGameWindow, "HideAffectShower", Py_BuildValue("()"));
+}
+#endif
